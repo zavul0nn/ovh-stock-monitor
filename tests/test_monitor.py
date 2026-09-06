@@ -270,6 +270,18 @@ class HTTPTests(unittest.TestCase):
         with self.assertRaises(m.RemoteError) as exc: self.send()
         self.assertNotIn("SECRET", str(exc.exception))
 
+    def test_telegram_400_preserves_explanation(self):
+        self.server.reply = (400, {"ok": False, "description": "Bad Request: chat not found"})
+        with self.assertRaises(m.RemoteError) as exc: self.send()
+        self.assertIn("HTTP 400: Bad Request: chat not found", str(exc.exception))
+
+    def test_telegram_description_redacts_urls_and_newlines(self):
+        self.server.reply = (400, {"ok": False, "description": "Bad Request\nSECRET https://api.telegram.org/botSECRET/sendMessage"})
+        with self.assertRaises(m.RemoteError) as exc: self.send()
+        self.assertNotIn("SECRET", str(exc.exception))
+        self.assertNotIn("https://", str(exc.exception))
+        self.assertNotIn("\n", str(exc.exception))
+
     def test_network_timeout(self):
         with patch("urllib.request.urlopen", side_effect=TimeoutError("SECRET")):
             with self.assertRaises(m.RemoteError) as exc: m.request_json(self.url)

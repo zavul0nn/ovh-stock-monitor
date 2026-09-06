@@ -7,6 +7,7 @@ import datetime as dt
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import signal
 import sqlite3
@@ -30,9 +31,10 @@ LOG = logging.getLogger("ovh-stock")
 
 
 class RemoteError(Exception):
-    def __init__(self, message, retry_after=0):
+    def __init__(self, message, retry_after=0, description=""):
         super().__init__(message)
         self.retry_after = retry_after
+        self.description = description
 
 
 def request_json(url, payload=None, timeout=10):
@@ -46,8 +48,11 @@ def request_json(url, payload=None, timeout=10):
             return json.load(response)
     except urllib.error.HTTPError as exc:
         delay = 0
+        description = ""
         try:
             body = json.loads(exc.read(65536))
+            if isinstance(body, dict) and isinstance(body.get("description"), str):
+                description = body["description"]
             delay = int(body.get("parameters", {}).get("retry_after", 0))
         except (ValueError, TypeError, AttributeError):
             pass
@@ -57,7 +62,7 @@ def request_json(url, payload=None, timeout=10):
             pass
         exc.close()
         # Never log request URLs: Telegram URLs contain the bot token.
-        raise RemoteError(f"HTTP {exc.code}", max(0, delay)) from None
+        raise RemoteError(f"HTTP {exc.code}", max(0, delay), description) from None
     except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
         raise RemoteError(type(exc).__name__) from None
 
@@ -89,7 +94,17 @@ def fetch_stock(model, subsidiary="IE"):
 
 
 def telegram_api(token, method, payload, timeout=10):
-    data = request_json(f"https://api.telegram.org/bot{token}/{method}", payload, timeout=timeout)
+    def safe_description(text):
+        text = text.replace(token, "[redacted]") if token else text
+        text = re.sub(r"https?://\S+", "[url]", text)
+        text = re.sub(r"\b\d+:[A-Za-z0-9_-]{15,}\b", "[redacted]", text)
+        return " ".join(text.split())[:240]
+
+    try:
+        data = request_json(f"https://api.telegram.org/bot{token}/{method}", payload, timeout=timeout)
+    except RemoteError as exc:
+        detail = safe_description(exc.description)
+        raise RemoteError(f"{exc}: {detail}" if detail else str(exc), exc.retry_after) from None
     if not isinstance(data, dict) or data.get("ok") is not True:
         delay = 0
         if isinstance(data, dict):
@@ -97,7 +112,8 @@ def telegram_api(token, method, payload, timeout=10):
                 delay = int(data.get("parameters", {}).get("retry_after", 0))
             except (ValueError, TypeError, AttributeError):
                 pass
-        raise RemoteError("Telegram did not confirm request", max(0, delay))
+        detail = safe_description(str(data.get("description", ""))) if isinstance(data, dict) else ""
+        raise RemoteError("Telegram did not confirm request" + (f": {detail}" if detail else ""), max(0, delay))
     return data.get("result")
 
 
@@ -286,7 +302,8 @@ class Store:
             delay = max(min(300, 5 * 2 ** min(row["attempts"], 6)), exc.retry_after)
             with self.db:
                 self.db.execute("UPDATE outbox SET attempts=attempts+1,next_try=? WHERE id=?", (now + delay, row["id"]))
-            LOG.warning("Telegram delivery failed: %s; retry in %ss", exc, delay)
+            LOG.warning("Telegram delivery failed: chat_id=%s queue_id=%s alert_id=%s keyboard=%s; %s; retry in %ss",
+                        row["chat_id"], row["id"], row["alert_id"], bool(row["markup"]), exc, delay)
             return False
         with self.db:
             self.db.execute("DELETE FROM outbox WHERE id=?", (row["id"],))
