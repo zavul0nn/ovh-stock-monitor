@@ -1,0 +1,59 @@
+{
+  "model": "vps-2027-model1",
+  "started_utc": "2026-09-06 09:50:50 UTC",
+  "ovh_source": "https://eu.api.ovh.com/v1/vps/order/rule/datacenter",
+  "real_ovh": true,
+  "real_telegram": false,
+  "telegram_destination": "local HTTP substitute",
+  "first_observation": {
+    "utc": "2026-09-06 09:50:51 UTC",
+    "statuses": {
+      "eu-west-eri": "available",
+      "eu-west-gra": "available",
+      "eu-west-sbg": "available",
+      "eu-west-lim": "available",
+      "eu-central-waw": "available",
+      "eu-south-mil": "out-of-stock",
+      "eu-west-rbx": "out-of-stock"
+    }
+  },
+  "second_observation": {
+    "utc": "2026-09-06 09:51:08 UTC",
+    "statuses": {
+      "eu-west-eri": "available",
+      "eu-west-gra": "available",
+      "eu-west-sbg": "available",
+      "eu-west-lim": "available",
+      "eu-central-waw": "available",
+      "eu-south-mil": "out-of-stock",
+      "eu-west-rbx": "out-of-stock"
+    }
+  },
+  "result": "PASS",
+  "initial_available_count": 5,
+  "new_appearances_second_poll": 0,
+  "duplicate_notifications": 0,
+  "queue_after_delivery": 0,
+  "simulated_http_500_retained_queue": true,
+  "reopened_database_retained_queue": true,
+  "locally_received_notifications": [
+    {
+      "chat_id": "local-test-chat",
+      "text": "🚨 OVH: Linux VPS доступен\nvps-2027-model1\nUK ERI\nFrance GRA\nFrance SBG\nGermany LIM\nPoland WAW\nОбнаружено: 2026-09-06 09:50:51 UTC\nПоследняя проверка: 2026-09-06 09:50:51 UTC\nНапоминаю каждую минуту, пока вы не подтвердите или наличие не исчезнет.\nhttps://www.ovhcloud.com/en-ie/vps/configurator/?planCode=vps-2027-model1",
+      "disable_notification": false,
+      "link_preview_options": {
+        "is_disabled": true
+      },
+      "reply_markup": {
+        "inline_keyboard": [
+          [
+            {
+              "text": "✅ Я увидел уведомление",
+              "callback_data": "seen:1"
+            }
+          ]
+        ]
+      }
+    }
+  ]
+}

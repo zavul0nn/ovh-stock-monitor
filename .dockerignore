@@ -1,0 +1,7 @@
+*
+!monitor.py
+!admin.py
+!installer.py
+!tests/
+!tests/**
+tests/**/__pycache__/

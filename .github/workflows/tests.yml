@@ -1,0 +1,17 @@
+name: Tests
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests inside Docker
+        run: docker build --target test -t ovh-stock-tests .
+      - name: Build runtime
+        run: docker build --target runtime -t ovh-stock .
+      - name: Validate compose
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+      - name: Runtime smoke check
+        run: docker run --rm --network none --entrypoint python ovh-stock -c 'import monitor; assert len(monitor.MODELS) == 3'
